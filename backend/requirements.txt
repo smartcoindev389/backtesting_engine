@@ -1,0 +1,6 @@
+python-binance
+pandas
+numpy
+pyyaml
+python-dotenv
+matplotlib

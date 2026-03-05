@@ -1,0 +1,21 @@
+symbols:
+  # - BTCUSDT
+  # - ETHUSDT
+  # - SOLUSDT
+  # - AVAXUSDT
+  # - LINKUSDT
+  # - DOGEUSDT
+  # - MATICUSDT
+  - ADAUSDT
+
+timeframe: 30m
+
+risk:
+  risk_per_trade: 0.01
+  max_total_risk: 0.03
+  max_daily_drawdown: 0.05
+
+strategy:
+  ema_period: 200
+  atr_period: 14
+  rr_ratio: 2.0
