@@ -24,11 +24,11 @@ df = apply_indicators(df, config["strategy"]["ema_period"])
 df = generate_signals(df)
 
 # Run backtest
-equity_curve, trades = backtest(
+equity_curve, equity_dates, trades = backtest(
     df,
     risk_pct=config["risk"]["risk_per_trade"],
-    # rr_ratio=config["strategy"]["rr_ratio"],
-    initial_equity=10000
+    initial_equity=10000,
+    symbol=symbol
 )
 
 # Get performance summary

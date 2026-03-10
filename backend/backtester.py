@@ -2,18 +2,20 @@ import numpy as np
 
 FEE_RATE = 0.001      # 0.1% per side
 SLIPPAGE = 0.0002     # 0.02%
-STOP_PCT = 0.01       # 1% fixed stop
 COOLDOWN_BARS = 3
 
 
 def backtest(
     df,
     risk_pct=0.01,
-    initial_equity=10000
+    stop_loss_pct=0.01,
+    initial_equity=10000,
+    symbol="UNKNOWN"
 ):
 
     equity = initial_equity
     equity_curve = []
+    equity_dates = []
     trades = []
 
     position = None
@@ -23,41 +25,39 @@ def backtest(
 
         row = df.iloc[i]
         prev = df.iloc[i - 1]
+        timestamp = str(df.index[i])
 
         if cooldown > 0:
             cooldown -= 1
             equity_curve.append(equity)
+            equity_dates.append(timestamp)
             continue
 
-        # ======================
-        # ENTRY
-        # ======================
         if position is None and prev["signal"] == 1:
 
             entry_price = row["open"] * (1 + SLIPPAGE)
 
-            stop_price = entry_price * (1 - STOP_PCT)
+            stop_price = entry_price * (1 - stop_loss_pct)
             risk_per_unit = entry_price - stop_price
 
             if risk_per_unit <= 0:
                 equity_curve.append(equity)
+                equity_dates.append(timestamp)
                 continue
 
             position_size = (equity * risk_pct) / risk_per_unit
 
-            # Mean reversion target
             target_price = row["bb_mid"]
 
             position = {
                 "entry": entry_price,
                 "stop": stop_price,
                 "target": target_price,
-                "size": position_size
+                "size": position_size,
+                "entry_time": timestamp,
+                "symbol": symbol,
             }
 
-        # ======================
-        # MANAGE POSITION
-        # ======================
         elif position is not None:
 
             stop_hit = row["low"] <= position["stop"]
@@ -66,7 +66,6 @@ def backtest(
             exit_price = None
             result = None
 
-            # Conservative: assume stop first if both hit
             if stop_hit:
                 exit_price = position["stop"] * (1 - SLIPPAGE)
                 result = "loss"
@@ -92,18 +91,22 @@ def backtest(
                 equity += net_profit
 
                 trades.append({
-                    "entry_price": position["entry"],
-                    "exit_price": exit_price,
-                    "profit": net_profit,
-                    "result": result
+                    "entry_price": round(position["entry"], 2),
+                    "exit_price": round(exit_price, 2),
+                    "profit": round(net_profit, 2),
+                    "result": result,
+                    "entry_time": position["entry_time"],
+                    "exit_time": timestamp,
+                    "symbol": position["symbol"],
                 })
 
                 position = None
                 cooldown = COOLDOWN_BARS
 
         equity_curve.append(equity)
+        equity_dates.append(timestamp)
 
-    return equity_curve, trades
+    return equity_curve, equity_dates, trades
 
 
 # ==============================
@@ -158,3 +161,27 @@ def performance_summary(equity_curve, trades):
         "Final Equity": round(equity_curve[-1], 2),
         "Total Return %": round(total_return * 100, 2)
     }
+
+
+def build_drawdown_curve(equity_curve, equity_dates):
+    peak = equity_curve[0]
+    drawdown_curve = []
+    for i, value in enumerate(equity_curve):
+        if value > peak:
+            peak = value
+        dd = ((peak - value) / peak) * 100 if peak > 0 else 0
+        drawdown_curve.append({
+            "date": equity_dates[i][:10] if i < len(equity_dates) else "",
+            "drawdown": round(dd, 2),
+        })
+    return drawdown_curve
+
+
+def build_equity_curve_json(equity_curve, equity_dates):
+    return [
+        {
+            "date": equity_dates[i][:10] if i < len(equity_dates) else "",
+            "equity": round(val, 2),
+        }
+        for i, val in enumerate(equity_curve)
+    ]
