@@ -1,0 +1,20 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+*.egg-info/
+.eggs/
+
+# Archives (optional – remove if you want to track zips)
+*.zip
+
+# OS
+.DS_Store
+Thumbs.db
